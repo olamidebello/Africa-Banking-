@@ -9,7 +9,7 @@ def password(p,s):return hashlib.pbkdf2_hmac('sha256',p.encode(),s.encode(),2400
 def init():
  with connect() as c:
   c.executescript('''CREATE TABLE IF NOT EXISTS tenants(id TEXT PRIMARY KEY,name TEXT);CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,tenant TEXT REFERENCES tenants(id),email TEXT UNIQUE,name TEXT,salt TEXT,hash TEXT,role TEXT);CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user TEXT REFERENCES users(id),expires INTEGER);CREATE TABLE IF NOT EXISTS accounts(id TEXT PRIMARY KEY,tenant TEXT,user TEXT REFERENCES users(id),name TEXT,currency TEXT,balance INTEGER DEFAULT 0);CREATE TABLE IF NOT EXISTS requests(id TEXT PRIMARY KEY,tenant TEXT,user TEXT,kind TEXT,data TEXT,status TEXT,created INTEGER);CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,tenant TEXT,actor TEXT,action TEXT,created INTEGER);CREATE TABLE IF NOT EXISTS entries(id INTEGER PRIMARY KEY,transfer TEXT,account TEXT REFERENCES accounts(id),amount INTEGER,created INTEGER);''')
-  c.execute('INSERT OR IGNORE INTO tenants VALUES (?,?)',('africa','Africa BankH'))
+  c.execute('INSERT OR IGNORE INTO tenants VALUES (?,?)',('africa','Africa Bank'))
   if os.getenv('BANKH_ADMIN_EMAIL') and os.getenv('BANKH_ADMIN_PASSWORD'):
    s=secrets.token_hex(16);c.execute('INSERT OR IGNORE INTO users VALUES (?,?,?,?,?,?,?)',(secrets.token_hex(12),'africa',os.environ['BANKH_ADMIN_EMAIL'].lower(),'Platform Administrator',s,password(os.environ['BANKH_ADMIN_PASSWORD'],s),'superadmin'))
 class Handler(BaseHTTPRequestHandler):
