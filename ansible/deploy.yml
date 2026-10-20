@@ -39,6 +39,43 @@
           BANKH_DB=/var/lib/bankh/bankh.sqlite3
           PORT={{ bankh_port }}
           BANKH_SECURE_COOKIE=1
+    - name: Stop only Africa BankH before selecting its port
+      ansible.builtin.systemd:
+        name: africa-bankh
+        state: stopped
+      failed_when: false
+    - name: Select an available loopback port without stopping other applications
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - |
+            import socket
+            preferred = {{ bankh_port | int }}
+            for port in [preferred] + [p for p in range(18841, 18941) if p != preferred]:
+                with socket.socket() as listener:
+                    try:
+                        listener.bind(('127.0.0.1', port))
+                    except OSError:
+                        continue
+                    print(port)
+                    break
+            else:
+                raise SystemExit('No available Africa BankH port in configured range')
+      register: bankh_available_port
+      changed_when: false
+    - name: Use selected port consistently
+      ansible.builtin.set_fact:
+        bankh_port: '{{ bankh_available_port.stdout | trim | int }}'
+    - name: Update only the service port in the preserved environment
+      ansible.builtin.lineinfile:
+        path: /etc/africa-bankh.env
+        regexp: '^PORT='
+        line: 'PORT={{ bankh_port }}'
+    - name: Clear service start limit after previous failures
+      ansible.builtin.command: systemctl reset-failed africa-bankh
+      changed_when: false
+      failed_when: false
     - name: Install service
       ansible.builtin.copy:
         dest: /etc/systemd/system/africa-bankh.service
@@ -52,6 +89,7 @@
           EnvironmentFile=/etc/africa-bankh.env
           ExecStart=/usr/bin/python3 /opt/africa-bankh/app.py
           Restart=on-failure
+          RestartSec=5
           NoNewPrivileges=true
           ProtectSystem=strict
           ProtectHome=true
@@ -97,6 +135,11 @@
               proxy_set_header X-Forwarded-Proto $scheme;
             }
           }
+    - name: Synchronize upstream port while preserving existing TLS configuration
+      ansible.builtin.replace:
+        path: /etc/nginx/sites-available/africa-bankh
+        regexp: 'proxy_pass http://127\.0\.0\.1:[0-9]+;'
+        replace: 'proxy_pass http://127.0.0.1:{{ bankh_port }};'
     - name: Enable host
       ansible.builtin.file:
         src: /etc/nginx/sites-available/africa-bankh
