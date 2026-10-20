@@ -64,13 +64,24 @@
         daemon_reload: true
         enabled: true
         state: restarted
+    - name: Check service is running before probing
+      ansible.builtin.command: systemctl is-active africa-bankh
+      changed_when: false
     - name: Verify backend
       ansible.builtin.uri:
         url: 'http://127.0.0.1:{{ bankh_port }}/api/health'
+        method: GET
+        use_proxy: false
+        return_content: true
       register: bankh_health
       retries: 10
       delay: 2
-      until: bankh_health.status == 200
+      until: bankh_health.status == 200 and (bankh_health.json.service | default('')) == 'africa-bankh'
+    - name: Confirm listener belongs to the Africa BankH service
+      ansible.builtin.shell: |
+        main_pid=$(systemctl show africa-bankh --property MainPID --value)
+        ss -ltnp 'sport = :{{ bankh_port | int }}' | grep -F "pid=$main_pid,"
+      changed_when: false
     - name: Configure dedicated nginx host
       ansible.builtin.copy:
         dest: /etc/nginx/sites-available/africa-bankh
