@@ -1,0 +1,114 @@
+---
+- name: Deploy Africa BankH sandbox to Olamidepanel host
+  hosts: all
+  become: true
+  vars:
+    bankh_domain: banking.africandroid.world
+    bankh_port: 18840
+    bankh_repo: https://github.com/olamidebello/Africa-Banking-.git
+  tasks:
+    - name: Preserve Africa Jobs domain
+      ansible.builtin.assert:
+        that: bankh_domain != 'jobs.africandroid.world'
+        fail_msg: Africa BankH must use its dedicated banking domain
+    - name: Install runtime
+      ansible.builtin.apt:
+        name: [python3, git, nginx, certbot, python3-certbot-nginx]
+        update_cache: true
+    - name: Create service user
+      ansible.builtin.user:
+        name: bankh
+        system: true
+        home: /var/lib/bankh
+        create_home: true
+    - name: Pull source
+      ansible.builtin.git:
+        repo: '{{ bankh_repo }}'
+        dest: /opt/africa-bankh
+        version: main
+        update: true
+        force: false
+    - name: Create protected environment
+      ansible.builtin.copy:
+        dest: /etc/africa-bankh.env
+        owner: root
+        group: bankh
+        mode: '0640'
+        force: false
+        content: |
+          BANKH_DB=/var/lib/bankh/bankh.sqlite3
+          PORT={{ bankh_port }}
+          BANKH_SECURE_COOKIE=1
+    - name: Install service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/africa-bankh.service
+        content: |
+          [Unit]
+          Description=Africa BankH sandbox
+          After=network.target
+          [Service]
+          User=bankh
+          WorkingDirectory=/opt/africa-bankh
+          EnvironmentFile=/etc/africa-bankh.env
+          ExecStart=/usr/bin/python3 /opt/africa-bankh/app.py
+          Restart=on-failure
+          NoNewPrivileges=true
+          ProtectSystem=strict
+          ProtectHome=true
+          ReadWritePaths=/var/lib/bankh
+          [Install]
+          WantedBy=multi-user.target
+    - name: Start application
+      ansible.builtin.systemd:
+        name: africa-bankh
+        daemon_reload: true
+        enabled: true
+        state: restarted
+    - name: Verify backend
+      ansible.builtin.uri:
+        url: 'http://127.0.0.1:{{ bankh_port }}/api/health'
+      register: bankh_health
+      retries: 10
+      delay: 2
+      until: bankh_health.status == 200
+    - name: Configure dedicated nginx host
+      ansible.builtin.copy:
+        dest: /etc/nginx/sites-available/africa-bankh
+        force: false
+        content: |
+          server {
+            listen 80;
+            server_name {{ bankh_domain }};
+            client_max_body_size 100k;
+            location / {
+              proxy_pass http://127.0.0.1:{{ bankh_port }};
+              proxy_set_header Host $host;
+              proxy_set_header X-Forwarded-Proto $scheme;
+            }
+          }
+    - name: Enable host
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/africa-bankh
+        dest: /etc/nginx/sites-enabled/africa-bankh
+        state: link
+    - name: Validate nginx
+      ansible.builtin.command: nginx -t
+      changed_when: false
+    - name: Reload nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded
+    - name: Obtain certificate when DNS and email are configured
+      ansible.builtin.command:
+        argv: [certbot, --nginx, -d, '{{ bankh_domain }}', --non-interactive, --agree-tos, --redirect, -m, '{{ bankh_tls_email }}']
+      when: bankh_tls_email is defined
+
+    - name: Verify trusted public HTTPS after certificate provisioning
+      ansible.builtin.uri:
+        url: 'https://{{ bankh_domain }}/api/health'
+        validate_certs: true
+        return_content: true
+      when: bankh_tls_email is defined
+    - name: Report deployment
+      ansible.builtin.debug:
+        msg: 'Africa BankH sandbox deployed. Domain: {{ bankh_domain }}. Service: africa-bankh. Database: /var/lib/bankh/bankh.sqlite3. Configure administrator credentials in /etc/africa-bankh.env before first login.'
