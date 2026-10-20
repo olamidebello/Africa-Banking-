@@ -1,5 +1,5 @@
 ---
-- name: Deploy Africa BankH sandbox to Olamidepanel host
+- name: Deploy Africa Bank sandbox to Olamidepanel host
   hosts: all
   become: true
   vars:
@@ -10,7 +10,7 @@
     - name: Preserve Africa Jobs domain
       ansible.builtin.assert:
         that: bankh_domain != 'jobs.africandroid.world'
-        fail_msg: Africa BankH must use its dedicated banking domain
+        fail_msg: Africa Bank must use its dedicated banking domain
     - name: Install runtime
       ansible.builtin.apt:
         name: [python3, git, nginx, certbot, python3-certbot-nginx]
@@ -39,7 +39,7 @@
           BANKH_DB=/var/lib/bankh/bankh.sqlite3
           PORT={{ bankh_port }}
           BANKH_SECURE_COOKIE=1
-    - name: Stop only Africa BankH before selecting its port
+    - name: Stop only Africa Bank before selecting its port
       ansible.builtin.systemd:
         name: africa-bankh
         state: stopped
@@ -61,7 +61,7 @@
                     print(port)
                     break
             else:
-                raise SystemExit('No available Africa BankH port in configured range')
+                raise SystemExit('No available Africa Bank port in configured range')
       register: bankh_available_port
       changed_when: false
     - name: Use selected port consistently
@@ -81,7 +81,7 @@
         dest: /etc/systemd/system/africa-bankh.service
         content: |
           [Unit]
-          Description=Africa BankH sandbox
+          Description=Africa Bank sandbox
           After=network.target
           [Service]
           User=bankh
@@ -115,7 +115,7 @@
       retries: 10
       delay: 2
       until: bankh_health.status == 200 and (bankh_health.json.service | default('')) == 'africa-bankh'
-    - name: Confirm listener belongs to the Africa BankH service
+    - name: Confirm listener belongs to the Africa Bank service
       ansible.builtin.shell: |
         main_pid=$(systemctl show africa-bankh --property MainPID --value)
         ss -ltnp 'sport = :{{ bankh_port | int }}' | grep -F "pid=$main_pid,"
@@ -165,4 +165,4 @@
       when: bankh_tls_email is defined
     - name: Report deployment
       ansible.builtin.debug:
-        msg: 'Africa BankH sandbox deployed. Domain: {{ bankh_domain }}. Service: africa-bankh. Database: /var/lib/bankh/bankh.sqlite3. Configure administrator credentials in /etc/africa-bankh.env before first login.'
+        msg: 'Africa Bank sandbox deployed. Domain: {{ bankh_domain }}. Service: africa-bankh. Database: /var/lib/bankh/bankh.sqlite3. Configure administrator credentials in /etc/africa-bankh.env before first login.'
