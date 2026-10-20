@@ -21,9 +21,9 @@ class Handler(BaseHTTPRequestHandler):
  def user(self,c):
   ck=SimpleCookie();ck.load(self.headers.get('Cookie',''));token=ck.get('bankh');return c.execute('SELECT u.* FROM users u JOIN sessions s ON s.user=u.id WHERE s.token=? AND s.expires>?',(token.value if token else '',time.time())).fetchone()
  def do_GET(self):
+  if self.path.split('?')[0].rstrip('/')=='/api/health':return self.send(200,{'status':'ok','service':'africa-bankh','mode':'demo','livePayments':False})
   if self.path.startswith('/api/'):
    with connect() as c:
-    if self.path=='/api/health':return self.send(200,{'status':'ok','mode':'demo','livePayments':False})
     u=self.user(c)
     if not u:return self.send(401,{'error':'Sign in to continue'})
     if self.path=='/api/state':
