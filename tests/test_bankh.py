@@ -18,6 +18,9 @@ class BankHTest(unittest.TestCase):
      with urllib.request.urlopen(req) as r:return r.status,json.load(r)
     except urllib.error.HTTPError as r:return r.code,json.load(r)
    try:
+    self.assertEqual(call('', 'health')[0],200)
+    self.assertEqual(call('', 'health')[1]['service'],'africa-bankh')
+    self.assertEqual(call('', 'state')[0],401)
     self.assertEqual([a['id'] for a in call('outsider','state')[1]['accounts']],['c'])
     self.assertEqual(call('alice','requests',{'kind':'Transfer','from':'a','to':'c','amount':50})[0],400)
     self.assertEqual(call('alice','requests',{'kind':'Transfer','from':'a','to':'b','amount':250})[0],200)
