@@ -1,7 +1,7 @@
-# Africa BankH
+# Africa Bank
 Your ambition. Our continent.
 
-Initial development sandbox for banking.africandroid.world. Original Africa BankH branding; independent of Citi and Field Nation.
+Initial development sandbox for banking.africandroid.world. Original Africa Bank branding; independent of Citi and Field Nation.
 
 ## Run
 Python 3.11+. Set BANKH_ADMIN_EMAIL and BANKH_ADMIN_PASSWORD (at least 12 characters recommended) in the process environment before the initial start. Run `python3 app.py`; open http://127.0.0.1:18840. No hard-coded credentials. Database files and secrets are ignored by Git.
@@ -22,7 +22,7 @@ The mobile deliverable currently is an installable web app, not an APK. Native A
 
 Production hardening still requires a production WSGI/ASGI server, authentication throttling, MFA, recovery, security review, monitoring/backups, provider integrations and reconciliation. The standard-library HTTP server is for initial sandbox evaluation only. Do not expose this build as a live financial service.
 
-Logo prompt: original emerald/gold Africa continent integrated with a bank arch; exact name Africa BankH; slogan Your ambition. Our continent. Generated using built-in image generation. Same artwork used in header, card background and app icons.
+Logo prompt: original emerald/gold Africa continent integrated with a bank arch; exact name Africa Bank; slogan Your ambition. Our continent. Generated using built-in image generation. Same artwork used in header, card background and app icons.
 
 ## Afira (proposed currency)
 Name: Afira. Symbol: Ⱥ. Proposed code: AFR. Pronunciation: Ah-FEE-rah. Subdivision: 1 Afira = 100 cents. Examples: Ⱥ10 · Ⱥ250 · Ⱥ1,000. The name combines Africa and a new era, representing shared prosperity across the continent; the strong A symbol connects it to Africa. Available for new sandbox accounts alongside USD; balances use integer cents and explicit Ⱥ formatting. Transfers require matching currencies; there is no exchange rate or automatic conversion. This is a platform-defined proposed currency, not a claim of official currency status. Existing accounts retain their currency.
