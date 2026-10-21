@@ -2,6 +2,7 @@ import os,json,sqlite3,secrets,hashlib,hmac,time
 from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
 from http.cookies import SimpleCookie
 from pathlib import Path
+CURRENCIES=json.loads((Path(__file__).parent/'static'/'currencies.json').read_text())
 DB=os.getenv('BANKH_DB','bankh.sqlite3')
 def connect():
  c=sqlite3.connect(DB);c.row_factory=sqlite3.Row;c.execute('PRAGMA foreign_keys=ON');return c
@@ -32,7 +33,7 @@ class Handler(BaseHTTPRequestHandler):
   path=self.path.split('?')[0];path='/index.html' if path=='/' else path
   f=(Path(__file__).parent/'static'/path.lstrip('/')).resolve();root=(Path(__file__).parent/'static').resolve()
   if root not in f.parents or not f.is_file():return self.send(404,{'error':'Not found'})
-  mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'}.get(f.suffix,'application/octet-stream');self.send_response(200);self.send_header('Content-Type',mime);self.send_header('X-Content-Type-Options','nosniff');self.end_headers();self.wfile.write(f.read_bytes())
+  mime={'.html':'text/html','.json':'application/json','.js':'text/javascript','.css':'text/css','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'}.get(f.suffix,'application/octet-stream');self.send_response(200);self.send_header('Content-Type',mime);self.send_header('X-Content-Type-Options','nosniff');self.end_headers();self.wfile.write(f.read_bytes())
  def do_POST(self):
   try:
    if int(self.headers.get('Content-Length',0))>100000:raise ValueError('Request too large')
@@ -54,13 +55,13 @@ class Handler(BaseHTTPRequestHandler):
      c.execute('DELETE FROM sessions WHERE user=?',(u['id'],));return self.send(200,{'ok':True},'bankh=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')
     action=self.path.removeprefix('/api/')
     if action=='accounts':
-     if d.get('currency','USD') not in ('USD','AFR'):raise ValueError('Unsupported currency')
+     if d.get('currency','USD') not in CURRENCIES:raise ValueError('Unsupported currency')
      c.execute('INSERT INTO accounts VALUES (?,?,?,?,?,0)',(secrets.token_hex(8),u['tenant'],u['id'],d.get('name','Everyday Account')[:80],d.get('currency','USD')))
     elif action=='requests':
      if d.get('kind') not in ['Transfer','Card request','Loan application','Support ticket','Dispute','Deposit review','Account recovery','Business application']:raise ValueError('Unsupported request')
      if d['kind']=='Transfer':
       amount=d.get('amount');a=c.execute('SELECT * FROM accounts WHERE id=? AND user=? AND tenant=?',(d.get('from'),u['id'],u['tenant'])).fetchone();b=c.execute('SELECT * FROM accounts WHERE id=? AND tenant=?',(d.get('to'),u['tenant'])).fetchone()
-      if type(amount)!=int or amount<=0 or not a or not b or a['id']==b['id']:raise ValueError('Select distinct tenant accounts and a positive amount in cents')
+      if type(amount)!=int or amount<=0 or not a or not b or a['id']==b['id']:raise ValueError('Select distinct tenant accounts and a positive amount in currency minor units')
       if a['currency']!=b['currency']:raise ValueError('Transfers require matching currencies; exchange is not configured')
       d['currency']=a['currency']
      c.execute('INSERT INTO requests VALUES (?,?,?,?,?,?,?)',(secrets.token_hex(12),u['tenant'],u['id'],d['kind'],json.dumps(d),'pending',int(time.time())))
