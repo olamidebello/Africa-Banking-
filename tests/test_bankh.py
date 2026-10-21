@@ -8,7 +8,7 @@ class BankHTest(unittest.TestCase):
    app.DB=td+'/test.db';app.init()
    with app.connect() as c:
     c.execute("INSERT INTO tenants VALUES ('other','Other')")
-    for uid,tenant,role in [('alice','africa','customer'),('reviewer','africa','admin'),('outsider','other','customer')]:
+    for uid,tenant,role in [('alice','africa','customer'),('reviewer','africa','admin'),('outsider','other','customer'),('owner','africa','superadmin')]:
      c.execute('INSERT INTO users VALUES (?,?,?,?,?,?,?)',(uid,tenant,uid+'@test.com',uid,'salt',app.password('longpassword123','salt'),role));c.execute('INSERT INTO sessions VALUES (?,?,?)',(uid,uid,9999999999))
     c.executemany('INSERT INTO accounts VALUES (?,?,?,?,?,?)',[('a','africa','alice','A','USD',1000),('b','africa','reviewer','B','USD',0),('c','other','outsider','C','USD',1000),('f','africa','alice','Afira','AFR',1000),('g','africa','reviewer','Afira receiver','AFR',0)])
    server=app.ThreadingHTTPServer(('127.0.0.1',0),app.Handler);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
@@ -38,5 +38,20 @@ class BankHTest(unittest.TestCase):
     with app.connect() as c:
      self.assertEqual(c.execute("SELECT balance FROM accounts WHERE id='f'").fetchone()[0],875)
      self.assertEqual(c.execute("SELECT balance FROM accounts WHERE id='g'").fetchone()[0],125)
+    self.assertEqual(call('alice','admin')[0],403)
+    self.assertEqual(call('reviewer','admin/settings',{'maintenance':True})[0],403)
+    self.assertEqual(call('owner','admin')[0],200)
+    self.assertEqual(call('owner','admin/settings',{'registration_open':False,'default_currency':'AFR'})[0],200)
+    self.assertEqual(call('', 'register',{'name':'Closed','email':'closed@test.com','password':'longpassword123'})[0],403)
+    self.assertEqual(call('owner','admin/user-role',{'id':'owner','role':'customer'})[0],400)
+    self.assertEqual(call('owner','admin/user-create',{'tenant':'other','name':'New tenant admin','email':'newadmin@test.com','role':'admin','password':'longpassword123'})[0],200)
+    self.assertEqual(call('owner','admin/user-status',{'id':'outsider','disabled':True})[0],200)
+    self.assertEqual(call('outsider','state')[0],401)
+    self.assertEqual(call('owner','admin/settings',{'maintenance':True})[0],200)
+    self.assertEqual(call('alice','accounts',{'name':'Blocked'})[0],503)
+    self.assertEqual(call('owner','admin/settings',{'maintenance':False})[0],200)
+    self.assertEqual(call('alice','accounts',{'name':'Afira default'})[0],200)
+    with app.connect() as c:
+     self.assertEqual(c.execute("SELECT currency FROM accounts WHERE name='Afira default'").fetchone()[0],'AFR')
    finally:server.shutdown();server.server_close()
 if __name__=='__main__':unittest.main()
