@@ -16,7 +16,7 @@ DNS A for banking.africandroid.world must resolve to that server before TLS issu
 ## Honest scope / next work
 Not an operating bank. No real deposits, external transfers, card issuance, credit decisions, investments, rewards, wire/Zelle rails, KYC providers, recovery emails, MFA, or regulated disclosures are connected. No claims of deposit insurance. No funding endpoint exists. Demo accounts start at zero; ledger tests use isolated fixtures. Legal text is draft and requires operator details before live use.
 
-Tenant database and isolation exist, but tenant user provisioning, tenant administrator assignment, domain branding and invitation flows remain to implement. Superadmin sees its own tenant’s operations and the tenant registry. There is no arbitrary balance editing.
+Tenant database and isolation exist, but domain branding and invitation flows remain to implement. Tenant users and administrator roles can be provisioned through the Control center. Superadmin sees its own tenant’s operations and the tenant registry. There is no arbitrary balance editing.
 
 The mobile deliverable currently is an installable web app, not an APK. Native Android packaging/signing and africanappsstore.space publication are pending. No fake download link is shown. Android should use the same HTTPS site after deployment and must not bypass certificate validation.
 
@@ -36,3 +36,10 @@ cd /opt/africa-bankh
 ansible-playbook -i localhost, -c local ansible/deploy.yml -e bankh_tls_email=dobcalldemo@gmail.com
 ```
 For later updates, run the same playbook from /opt/africa-bankh. It pulls main automatically, preserves the database and environment file, restarts the service, validates nginx, and verifies backend and HTTPS health. DNS must point banking.africandroid.world at the server before running TLS provisioning. From an authorized workstation use `ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -e bankh_tls_email=dobcalldemo@gmail.com` with your configured SSH key.
+
+## Super administrator control center
+Super administrators receive Control center, Users, Organizations, Currencies, Site settings, and Reports tabs after sign-in. Create users in a selected tenant; assign customer/admin/superadmin roles; suspend users; revoke their sessions; rename or suspend other tenants. Self suspension and self role changes are refused. Tenant administrators retain tenant-scoped operational access. Suspensions invalidate sessions and block login.
+
+Site settings control registration, customer write maintenance mode, support email and public announcements. Currency controls set the default denomination and availability for new accounts, preserving existing balances. Reports export users, recent audit records and requests to CSV. The global administration view lists up to 500 recent requests and audit events; operation approvals remain scoped to the administrator’s tenant. All users can change their password, which invalidates existing sessions. No password hashes or session tokens are exposed by admin APIs.
+
+Run `bash scripts/go-live.sh` on the server to pull, test, deploy and verify public HTTPS. The playbook snapshots the default SQLite database under /var/lib/bankh/backups before updating. Custom database locations need their own backup policy. This command publishes the public sandbox; it does not enable real-money banking or install payment providers. Host commands, server secrets and deployment execution are not exposed through the web GUI.
