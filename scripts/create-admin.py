@@ -19,17 +19,16 @@ def main():
     db = config.get('BANKH_DB', '/var/lib/bankh/bankh.sqlite3')
     if not os.path.isfile(db):
         raise SystemExit('Application database not found. Deploy the application first.')
-    with open('/dev/tty', 'r+') as tty:
-        tty.write('Super admin email: ')
-        tty.flush()
-        email = tty.readline().strip().lower()
-        if '@' not in email:
-            raise SystemExit('Valid email required.')
-        pw = getpass.getpass('New password (12+ characters): ', stream=tty)
-        if len(pw) < 12:
-            raise SystemExit('Use at least 12 characters.')
-        if pw != getpass.getpass('Confirm password: ', stream=tty):
-            raise SystemExit('Passwords do not match.')
+    if not sys.stdin.isatty():
+        raise SystemExit('Run directly in an interactive terminal: python3 scripts/create-admin.py')
+    email = input('Super admin email: ').strip().lower()
+    if '@' not in email:
+        raise SystemExit('Valid email required.')
+    pw = getpass.getpass('New password (12+ characters): ')
+    if len(pw) < 12:
+        raise SystemExit('Use at least 12 characters.')
+    if pw != getpass.getpass('Confirm password: '):
+        raise SystemExit('Passwords do not match.')
     salt = secrets.token_hex(16)
     with sqlite3.connect('file:' + str(Path(db).resolve()) + '?mode=rw', uri=True) as connection:
         connection.execute('PRAGMA foreign_keys=ON')
